@@ -1,0 +1,44 @@
+# Build
+target/
+build/
+out/
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Env
+.env
+.env.local
+application-local.yml
+application-local.properties
+
+# Gradle / Maven
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+.mvn/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Docker
+docker-compose.override.yml
+
+# Local
+notes/
