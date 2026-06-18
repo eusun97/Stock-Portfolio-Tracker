@@ -32,3 +32,34 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+
+external:
+  publicdata:
+    base-url: ${PUBLICDATA_BASE_URL:https://apis.data.go.kr/1160100/service/GetStockSecuritiesInfoService/getStockPriceInfo}
+    service-key: ${PUBLICDATA_SERVICE_KEY:dummy}
+    connect-timeout-ms: 2000
+    read-timeout-ms: 3000
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      publicData:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        ignore-exceptions:
+          - com.eusun97.stocktracker.exception.StockNotFoundException
+  retry:
+    instances:
+      publicData:
+        max-attempts: 3
+        wait-duration: 500ms
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - com.eusun97.stocktracker.exception.ExternalApiException
+        ignore-exceptions:
+          - com.eusun97.stocktracker.exception.StockNotFoundException

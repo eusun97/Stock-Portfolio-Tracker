@@ -7,6 +7,9 @@ import com.eusun97.stocktracker.entity.Holding;
 import com.eusun97.stocktracker.entity.RealizedProfit;
 import com.eusun97.stocktracker.entity.Trade;
 import com.eusun97.stocktracker.entity.TxType;
+import com.eusun97.stocktracker.exception.HoldingNotFoundException;
+import com.eusun97.stocktracker.exception.InsufficientHoldingException;
+import com.eusun97.stocktracker.exception.TradeNotFoundException;
 import com.eusun97.stocktracker.repository.HoldingRepository;
 import com.eusun97.stocktracker.repository.RealizedProfitRepository;
 import com.eusun97.stocktracker.repository.TradeRepository;
@@ -28,9 +31,12 @@ public class TradeService {
     private final TradeRepository tradeRepository;
     private final HoldingRepository holdingRepository;
     private final RealizedProfitRepository realizedProfitRepository;
+    private final StockResolver stockResolver;
 
     @Transactional
     public TradeResponse register(TradeRegisterRequest request) {
+        stockResolver.resolveOrFetch(request.ticker());
+
         Trade trade = tradeRepository.save(Trade.builder()
                 .ticker(request.ticker())
                 .txType(request.txType())
@@ -61,16 +67,14 @@ public class TradeService {
     @Transactional(readOnly = true)
     public TradeResponse findById(Long id) {
         Trade trade = tradeRepository.findByIdAndDeletedAtIsNull(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "거래내역을 찾을 수 없습니다. id=" + id));
+                .orElseThrow(() -> new TradeNotFoundException(id));
         return TradeResponse.from(trade);
     }
 
     @Transactional
     public TradeResponse update(Long id, TradeUpdateRequest request) {
         Trade trade = tradeRepository.findByIdAndDeletedAtIsNull(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "거래내역을 찾을 수 없습니다. id=" + id));
+                .orElseThrow(() -> new TradeNotFoundException(id));
 
         trade.update(request.quantity(), request.price(), request.tradedAt());
         recalculateHolding(trade.getTicker());
@@ -84,8 +88,7 @@ public class TradeService {
     @Transactional
     public void delete(Long id) {
         Trade trade = tradeRepository.findByIdAndDeletedAtIsNull(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "거래내역을 찾을 수 없습니다. id=" + id));
+                .orElseThrow(() -> new TradeNotFoundException(id));
 
         trade.softDelete();
         recalculateHolding(trade.getTicker());
@@ -111,11 +114,11 @@ public class TradeService {
 
     private void applySell(Trade trade) {
         Holding holding = holdingRepository.findByTickerForUpdate(trade.getTicker())
-                .orElseThrow(() -> new IllegalStateException(
+                .orElseThrow(() -> new HoldingNotFoundException(
                         "보유하지 않은 종목은 매도할 수 없습니다. ticker=" + trade.getTicker()));
 
         if (holding.getQuantity().compareTo(trade.getQuantity()) < 0) {
-            throw new IllegalStateException(String.format(
+            throw new InsufficientHoldingException(String.format(
                     "보유 수량이 부족합니다. ticker=%s, 보유=%s, 매도요청=%s",
                     trade.getTicker(), holding.getQuantity(), trade.getQuantity()));
         }
